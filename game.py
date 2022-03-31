@@ -15,10 +15,12 @@ FPS = 60
 fpsClock = pygame.time.Clock()
 
 WINDOW = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
-pygame.display.set_caption('My Game!')
+pygame.display.set_caption('OmbroBox')
+pygame.display.set_icon(pygame.image.load("icon.png"))
 
 
 def render(world: World, selected_tile: int):
+    pygame.display.set_caption(f'OmbroBox | FPS: {int(fpsClock.get_fps())}')
     surface = pygame.Surface((world.width, world.height))
     for tile in world.tiles:
         surface.set_at((tile.x, tile.y), tile.color)
