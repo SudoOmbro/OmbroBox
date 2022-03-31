@@ -5,5 +5,6 @@ A simple physics sandbox
 - Click with the `Left mouse button` to add the selected Tile
 - Click with the `Right mouse button` to delete the tile you are hovering on
 - Use the `Mouse wheel` to select different tiles
+- Press `Space` to Pause/Unpause the simulation
 
 ## Enjoy!

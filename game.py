@@ -18,8 +18,10 @@ WINDOW = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
 pygame.display.set_caption('OmbroBox')
 pygame.display.set_icon(pygame.image.load("icon.png"))
 
+paused_text = FONT.render("Simulation paused", False, (255, 255, 255))
 
-def render(world: World, selected_tile: int, mouse_position: Tuple[int, int]):
+
+def render(world: World, selected_tile: int, mouse_position: Tuple[int, int], paused: bool):
     pygame.display.set_caption(f'OmbroBox | FPS: {int(fpsClock.get_fps())}')
     surface = pygame.Surface((world.width, world.height))
     for tile in world.tiles:
@@ -32,6 +34,8 @@ def render(world: World, selected_tile: int, mouse_position: Tuple[int, int]):
     scaled_surface.blit(tile_text, (10, 10))
     scaled_surface.blit(updates_text, (10, 50))
     scaled_surface.blit(total_particles_text, (10, 90))
+    if paused:
+        scaled_surface.blit(paused_text, (WINDOW.get_width() - paused_text.get_width() - 10, 10))
     WINDOW.blit(scaled_surface, (0, 0))
     pygame.display.flip()
     fpsClock.tick(FPS)
@@ -54,6 +58,7 @@ def get_mouse_world_position(world: World) -> Tuple[int, int]:
 def main():
     world = World(160, 90)
     selected_tile: int = 0
+    pause: bool = False
 
     while True:
         # Get mouse position
@@ -74,14 +79,18 @@ def main():
                         selected_tile = 0
                     else:
                         selected_tile += 1
+            if event.type == KEYDOWN:
+                if event.unicode == " ":
+                    pause = not pause
         if pygame.mouse.get_pressed()[0]:
             world.add_tile(TILES[selected_tile], mouse_position[0], mouse_position[1])
         elif pygame.mouse.get_pressed()[2]:
             world.delete_tile(mouse_position[0], mouse_position[1])
         # update physics
-        world.update()
+        if not pause:
+            world.update()
         # render
-        render(world, selected_tile, mouse_position)
+        render(world, selected_tile, mouse_position, pause)
 
 
 if __name__ == '__main__':

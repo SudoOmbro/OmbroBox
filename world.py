@@ -30,6 +30,7 @@ class Tile:
     
         if a tile of type "key" is encountered, then transform into type "value"
     """
+    # TODO interactions system honestly sucks, it needs to be replaced with a heat transfer based system
 
     def __init__(self, color: Tuple[int, int, int], density: int, world: "World", x: int, y: int):
         self.color = color
