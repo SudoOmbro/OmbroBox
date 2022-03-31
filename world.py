@@ -156,7 +156,6 @@ class World:
 
 # Tile types --------------------------------------
 
-
 class SolidTile(Tile):
 
     MAX_SKIP = 100000
@@ -199,7 +198,6 @@ class GasTile(Tile):
 
 # Tiles ---------------------------------
 
-
 class ConcreteTile(SolidTile):
 
     NAME = "Concrete"
@@ -235,8 +233,15 @@ class VaporTile(GasTile):
     NAME = "Vapor"
 
     def __init__(self, world: "World", x: int, y: int):
-        super().__init__((255-random.randint(0, 20), 255-random.randint(0, 20), 255-random.randint(0, 20)), 1, world, x, y)
+        super().__init__((255-random.randint(0, 20), 255-random.randint(0, 20), 255-random.randint(0, 20)), 0, world, x, y)
         self.life = random.randint(120, 300)
+
+    def update(self):
+        if self.life == 0:
+            self.transform(WaterTile)
+            return True
+        self.life -= 1
+        return self.check_directions()
 
 
 class WaterTile(LiquidTile):
