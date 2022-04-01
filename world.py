@@ -2,6 +2,14 @@ import random
 from typing import Tuple, List, Dict
 
 
+TILES: List[type] = []
+
+
+def add_to_tile_list(tile: type) -> type:
+    TILES.append(tile)
+    return tile
+
+
 class Dir:
     """ Defines all the possible directions """
 
@@ -13,6 +21,25 @@ class Dir:
     UP_RIGHT = 1, -1
     DOWN_LEFT = -1, 1
     DOWN_RIGHT = 1, 1
+
+    ALL = (
+        UP,
+        UP_RIGHT,
+        RIGHT,
+        DOWN_RIGHT,
+        DOWN,
+        DOWN_LEFT,
+        LEFT,
+        UP_LEFT
+    )
+
+
+class NextPosition:
+
+    def __init__(self, x: int, y: int, valid: bool):
+        self.x = x
+        self.y = y
+        self.valid = valid
 
 
 class Tile:
@@ -31,15 +58,42 @@ class Tile:
         if a tile of type "key" is encountered, then transform into type "value"
     """
     # TODO interactions system honestly sucks, it needs to be replaced with a heat transfer based system
+    # actually we can keep it, just add the heat system on top.
+    # TODO add a heat variable & a heat transfer coefficient variable (htc)
 
-    def __init__(self, color: Tuple[int, int, int], density: int, world: "World", x: int, y: int):
+    def __init__(
+            self,
+            color: Tuple[int, int, int],
+            density: int,
+            world: "World",
+            x: int,
+            y: int,
+            base_heat: int = 0,
+            heat_transfer_coefficient: float = 0
+    ):
+        # render stuff
         self.color = color
+        # Physics stuff
         self.density = density
+        self.heat = base_heat
+        self.heat_transfer_coefficient = heat_transfer_coefficient
+        # position
         self.x = x
         self.y = y
         self.world = world
+        # optimization
         self.max_skip_update: int = 0
         self.skip_update: int = 0
+
+    def get_next_pos(self, vector: Tuple[int, int]) -> NextPosition:
+        valid: bool = True
+        next_x: int = self.x + vector[0]
+        if (next_x < 0) or (next_x >= self.world.width):
+            valid = False
+        next_y: int = self.y + vector[1]
+        if (next_y < 0) or (next_y >= self.world.height):
+            valid = False
+        return NextPosition(next_x, next_y, valid)
 
     def get_tile(self, x: int, y: int) -> "Tile" or None:
         return self.world.matrix[y][x]
@@ -56,27 +110,54 @@ class Tile:
                 return True
         return False
 
-    def try_move(self, direction: Tuple[int, int]) -> bool:
-        next_x: int = self.x + direction[0]
-        if (next_x < 0) or (next_x >= self.world.width):
-            return False
-        next_y: int = self.y + direction[1]
-        if (next_y < 0) or (next_y >= self.world.height):
-            return False
-        checked_tile = self.get_tile(next_x, next_y)
-        if not checked_tile:
-            self.move(next_x, next_y)
-            return True
-        else:
+    def interact(self):
+        # add this to the update function of a tile to have it just interact
+        for direction in Dir.ALL:
+            # get next position
+            next_pos = self.get_next_pos(direction)
+            if not next_pos.valid:
+                continue
+            # get tile to check
+            checked_tile = self.get_tile(next_pos.x, next_pos.y)
+            if not checked_tile:
+                continue
+            # check interaction
             interaction = self.INTERACTIONS.get(type(checked_tile))
             if interaction:
                 self.transform(interaction)
                 return True
-            if checked_tile.density < self.density:
-                checked_tile.x = self.x
-                checked_tile.y = self.y
-                self.move(next_x, next_y, replacement_tile=checked_tile)
+
+    def exchange_heat_and_interact(self):
+        # add this to the update function of a tile to have it interact AND exchange heat
+        for direction in Dir.ALL:
+            # get next position
+            next_pos = self.get_next_pos(direction)
+            if not next_pos.valid:
+                continue
+            # get tile to check
+            checked_tile = self.get_tile(next_pos.x, next_pos.y)
+            if not checked_tile:
+                continue
+            # check interaction
+            interaction = self.INTERACTIONS.get(type(checked_tile))
+            if interaction:
+                self.transform(interaction)
                 return True
+            # TODO check heat transfer
+
+    def try_move(self, direction: Tuple[int, int]) -> bool:
+        next_pos = self.get_next_pos(direction)
+        if not next_pos.valid:
+            return False
+        checked_tile = self.get_tile(next_pos.x, next_pos.y)
+        if not checked_tile:
+            self.move(next_pos.x, next_pos.y)
+            return True
+        elif checked_tile.density < self.density:
+            checked_tile.x = self.x
+            checked_tile.y = self.y
+            self.move(next_pos.x, next_pos.y, replacement_tile=checked_tile)
+            return True
         return False
 
     def delete(self):
@@ -179,7 +260,7 @@ class LiquidTile(Tile):
     MAX_SKIP = 20
 
     def update(self):
-        return self.check_directions()
+        return self.check_directions() or self.interact()
 
 
 class GasTile(Tile):
@@ -199,6 +280,7 @@ class GasTile(Tile):
 
 # Tiles ---------------------------------
 
+@add_to_tile_list
 class ConcreteTile(SolidTile):
 
     NAME = "Concrete"
@@ -213,6 +295,7 @@ class ConcreteTile(SolidTile):
         )
 
 
+@add_to_tile_list
 class SandTile(SemiSolidTile):
 
     NAME = "Sand"
@@ -221,6 +304,7 @@ class SandTile(SemiSolidTile):
         super().__init__((255-random.randint(0, 50), 255-random.randint(0, 50), 0), 10, world, x, y)
 
 
+@add_to_tile_list
 class LavaTile(LiquidTile):
 
     NAME = "Lava"
@@ -229,6 +313,7 @@ class LavaTile(LiquidTile):
         super().__init__((255 - random.randint(0, 20), 0, 0), 1000, world, x, y)
 
 
+@add_to_tile_list
 class VaporTile(GasTile):
 
     NAME = "Vapor"
@@ -245,6 +330,7 @@ class VaporTile(GasTile):
         return self.check_directions()
 
 
+@add_to_tile_list
 class WaterTile(LiquidTile):
 
     NAME = "Water"
@@ -254,19 +340,10 @@ class WaterTile(LiquidTile):
         super().__init__((0, 0, 255-random.randint(0, 100)), 2, world, x, y)
 
 
+@add_to_tile_list
 class OilTile(LiquidTile):
 
     NAME = "Oil"
 
     def __init__(self, world: "World", x: int, y: int):
         super().__init__((193-random.randint(0, 20), 193-random.randint(0, 20), 69-random.randint(0, 10)), 1, world, x, y)
-
-
-TILES: List[type] = [
-    ConcreteTile,
-    SandTile,
-    WaterTile,
-    OilTile,
-    VaporTile,
-    LavaTile
-]
