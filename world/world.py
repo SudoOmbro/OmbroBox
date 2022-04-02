@@ -57,7 +57,7 @@ class Tile:
             x: int,
             y: int,
             base_heat: int = 25,
-            heat_transfer_coefficient: float = 0,
+            heat_transfer_coefficient: float = 1,
             passive_heat_loss: int = 0
     ):
         # render stuff
@@ -123,19 +123,27 @@ class Tile:
     def check_thresholds(self):
         if self.UPPER_HEATH_THRESHOLD:
             if self.heat >= self.UPPER_HEATH_THRESHOLD[0]:
-                new_tile = self.transform(self.UPPER_HEATH_THRESHOLD[1])
-                new_tile.heat = self.heat
-                return True
+                if self.UPPER_HEATH_THRESHOLD[1]:
+                    new_tile = self.transform(self.UPPER_HEATH_THRESHOLD[1])
+                    new_tile.heat = self.heat
+                    return True
+                else:
+                    self.delete()
+                    return True
         if self.LOWER_HEATH_THRESHOLD:
             if self.heat <= self.LOWER_HEATH_THRESHOLD[0]:
-                new_tile = self.transform(self.LOWER_HEATH_THRESHOLD[1])
-                new_tile.heat = self.heat
-                return True
+                if self.LOWER_HEATH_THRESHOLD[1]:
+                    new_tile = self.transform(self.LOWER_HEATH_THRESHOLD[1])
+                    new_tile.heat = self.heat
+                    return True
+                else:
+                    self.delete()
+                    return True
         return False
 
     def exchange_heat(self, target_tile: "Tile"):
-        htc: float = (self.heat_transfer_coefficient + target_tile.heat_transfer_coefficient) / 2
-        exchanged_heat = int(((target_tile.heat - self.heat) * htc) / 2)
+        htc: float = self.heat_transfer_coefficient + target_tile.heat_transfer_coefficient
+        exchanged_heat = int((target_tile.heat - self.heat) * htc) >> 2
         self.heat += exchanged_heat
         target_tile.heat -= exchanged_heat
 
@@ -280,6 +288,22 @@ class GasTile(Tile):
     DIRECTIONS = (
         (Dir.UP, Dir.UP_LEFT, Dir.LEFT, Dir.UP_RIGHT, Dir.RIGHT),
         (Dir.UP, Dir.UP_RIGHT, Dir.RIGHT, Dir.UP_LEFT, Dir.LEFT)
+    )
+
+    def update_position(self):
+        self.check_directions(random.choice(self.DIRECTIONS))
+
+    def update_temperature(self):
+        self.do_exchange_heat()
+
+
+class ChaosTile(Tile):
+
+    DIRECTIONS = (
+        (Dir.UP, Dir.UP_LEFT, Dir.UP_RIGHT),
+        (Dir.LEFT, Dir.UP_LEFT, Dir.DOWN_LEFT),
+        (Dir.DOWN, Dir.DOWN_LEFT, Dir.DOWN_RIGHT),
+        (Dir.RIGHT, Dir.UP_RIGHT, Dir.DOWN_RIGHT)
     )
 
     def update_position(self):

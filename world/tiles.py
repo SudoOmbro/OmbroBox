@@ -1,7 +1,7 @@
 from random import randint
 from typing import List, Type
 
-from world.world import Tile, GasTile, World, LiquidTile, SemiSolidTile, SolidTile
+from world.world import Tile, GasTile, World, LiquidTile, SemiSolidTile, SolidTile, ChaosTile
 
 TILES: List[Type[Tile]] = []
 _TILES_TO_FIX: List[Type[Tile]] = []
@@ -26,9 +26,60 @@ class ConcreteTile(SolidTile):
             100000,
             world,
             x,
+            y
+        )
+
+
+@add_to_tile_list
+class WoodTile(SolidTile):
+
+    NAME = "Wood"
+    UPPER_HEATH_THRESHOLD = 500, "BurningWood"
+
+    def __init__(self, world: World, x: int, y: int):
+        super().__init__(
+            (137 + randint(-20, 20), 83 + randint(-20, 20), 24 + randint(-20, 20)),
+            100000,
+            world,
+            x,
             y,
-            base_heat=25,
-            heat_transfer_coefficient=1
+            heat_transfer_coefficient=0.01
+        )
+
+
+@add_to_tile_list
+class BurningWood(SolidTile):
+
+    NAME = "Burning Wood"
+    UPPER_HEATH_THRESHOLD = 2000, "AshTile"
+    LOWER_HEATH_THRESHOLD = 90, WoodTile
+
+    def __init__(self, world: World, x: int, y: int):
+        super().__init__(
+            (229 + randint(-20, 20), 138 + randint(-20, 20), 4),
+            100000,
+            world,
+            x,
+            y,
+            base_heat=500,
+            heat_transfer_coefficient=1,
+            passive_heat_loss=-5
+        )
+
+
+@add_to_tile_list
+class GlassTile(SolidTile):
+
+    NAME = "Glass"
+
+    def __init__(self, world: World, x: int, y: int):
+        super().__init__(
+            (172 + randint(-20, 20), 223 + randint(-20, 20), 226 + randint(-20, 20)),
+            100000,
+            world,
+            x,
+            y,
+            heat_transfer_coefficient=0.5
         )
 
 
@@ -39,6 +90,7 @@ class ConcreteTile(SolidTile):
 class SandTile(SemiSolidTile):
 
     NAME = "Sand"
+    UPPER_HEATH_THRESHOLD = 800, GlassTile
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
@@ -81,7 +133,6 @@ class IceTile(SemiSolidTile):
             x,
             y,
             base_heat=-40,
-            heat_transfer_coefficient=1
         )
 
 
@@ -89,7 +140,6 @@ class IceTile(SemiSolidTile):
 class AshTile(SemiSolidTile):
 
     NAME = "Ash"
-    UPPER_HEATH_THRESHOLD = 500, "FireTile"
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
@@ -99,7 +149,6 @@ class AshTile(SemiSolidTile):
             x,
             y,
             base_heat=100,
-            heat_transfer_coefficient=1
         )
 
 
@@ -119,8 +168,6 @@ class WaterTile(LiquidTile):
             world,
             x,
             y,
-            base_heat=25,
-            heat_transfer_coefficient=1
         )
 
 
@@ -138,7 +185,6 @@ class OilTile(LiquidTile):
             x,
             y,
             base_heat=25,
-            heat_transfer_coefficient=2
         )
 
 
@@ -146,7 +192,7 @@ class OilTile(LiquidTile):
 class LavaTile(LiquidTile):
 
     NAME = "Lava"
-    LOWER_HEATH_THRESHOLD = 100, RockTile
+    LOWER_HEATH_THRESHOLD = 500, RockTile
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
@@ -155,7 +201,7 @@ class LavaTile(LiquidTile):
             world,
             x,
             y,
-            base_heat=2000,
+            base_heat=10000,
             heat_transfer_coefficient=0.1
         )
 
@@ -164,6 +210,7 @@ class LavaTile(LiquidTile):
 class LiquidNitrogen(LiquidTile):
 
     NAME = "Liquid Nitrogen"
+    UPPER_HEATH_THRESHOLD = 0, None
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
@@ -172,8 +219,7 @@ class LiquidNitrogen(LiquidTile):
             world,
             x,
             y,
-            base_heat=-2000,
-            heat_transfer_coefficient=0
+            base_heat=-10000,
         )
 
 
@@ -193,7 +239,6 @@ class VaporTile(GasTile):
             x,
             y,
             base_heat=randint(220, 340),
-            heat_transfer_coefficient=1,
             passive_heat_loss=1
         )
 
@@ -202,7 +247,7 @@ class VaporTile(GasTile):
 class SmokeTile(GasTile):
 
     NAME = "Smoke"
-    LOWER_HEATH_THRESHOLD = 100, AshTile
+    LOWER_HEATH_THRESHOLD = 100, None
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
@@ -212,12 +257,13 @@ class SmokeTile(GasTile):
             x,
             y,
             base_heat=randint(220, 340),
-            heat_transfer_coefficient=1,
         )
 
 
+# Chaos tiles -------------------
+
 @add_to_tile_list
-class FireTile(GasTile):
+class FireTile(ChaosTile):
 
     NAME = "Fire"
     LOWER_HEATH_THRESHOLD = 100, SmokeTile
@@ -229,9 +275,9 @@ class FireTile(GasTile):
             world,
             x,
             y,
-            base_heat=600,
-            heat_transfer_coefficient=1,
-            passive_heat_loss=1
+            base_heat=1000,
+            passive_heat_loss=1,
+            heat_transfer_coefficient=1
         )
 
 
