@@ -1,8 +1,10 @@
 # OmbroBox
 A simple physics sandbox
 
-[Lava makes stuff hot!](https://github.com/SudoOmbro/OmbroBox/blob/main/screenshots/img1.png)
-[Wood burns with fire!](https://github.com/SudoOmbro/OmbroBox/blob/main/screenshots/img2.png)
+<div>
+  <img src="https://github.com/SudoOmbro/OmbroBox/blob/main/screenshots/img1.png" style=" width:200px ; height:200px"  >
+  <img src="https://github.com/SudoOmbro/OmbroBox/blob/main/screenshots/img2.png" style=" width:200px ; height:200px"  >
+</div>
 
 ## controls
 - Click with the `Left mouse button` to add the selected Tile
