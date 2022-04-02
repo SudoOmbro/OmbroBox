@@ -1,7 +1,7 @@
 from random import randint
 from typing import List, Type
 
-from world.world import Tile, GasTile, World, LiquidTile, SemiSolidTile, SolidTile, ChaosTile
+from world.world import Tile, GasTile, World, LiquidTile, SemiSolidTile, SolidTile, ChaosTile, CustomTile, Dir
 
 TILES: List[Type[Tile]] = []
 _TILES_TO_FIX: List[Type[Tile]] = []
@@ -282,17 +282,39 @@ class FireTile(ChaosTile):
         )
 
 
+@add_to_tile_list
+class GreyGooTile(CustomTile):
+
+    NAME = "Grey Goo"
+
+    def __init__(self, world: World, x: int, y: int):
+        super().__init__(
+            (180, 180, 180),
+            0,
+            world,
+            x,
+            y
+        )
+
+    def custom_update(self):
+        for direction in Dir.ALL:
+            tile: Tile = self.get_neighbour_tile(direction, self.world.space_matrix)
+            if tile and (type(tile) != GreyGooTile):
+                tile.transform(GreyGooTile)
+
+
 # This is needed as a workaround of Python's lack of forward declaration
 for tile_to_fix in TILES:
-    if tile_to_fix.UPPER_HEATH_THRESHOLD:
-        if type(tile_to_fix.UPPER_HEATH_THRESHOLD[1]) == str:
-            print(f"fixing {tile_to_fix.UPPER_HEATH_THRESHOLD[1]}")
-            tile_to_fix.UPPER_HEATH_THRESHOLD = \
-                tile_to_fix.UPPER_HEATH_THRESHOLD[0], \
-                globals()[tile_to_fix.UPPER_HEATH_THRESHOLD[1]]
-    if tile_to_fix.LOWER_HEATH_THRESHOLD:
-        if type(tile_to_fix.LOWER_HEATH_THRESHOLD[1]) == str:
-            print(f"fixing {tile_to_fix.LOWER_HEATH_THRESHOLD[1]}")
-            tile_to_fix.LOWER_HEATH_THRESHOLD = \
-                tile_to_fix.LOWER_HEATH_THRESHOLD[0], \
-                globals()[tile_to_fix.LOWER_HEATH_THRESHOLD[1]]
+    if "UPPER_HEATH_THRESHOLD" in tile_to_fix.__dict__:
+        if tile_to_fix.UPPER_HEATH_THRESHOLD:
+            if type(tile_to_fix.UPPER_HEATH_THRESHOLD[1]) == str:
+                print(f"fixing {tile_to_fix.UPPER_HEATH_THRESHOLD[1]}")
+                tile_to_fix.UPPER_HEATH_THRESHOLD = \
+                    tile_to_fix.UPPER_HEATH_THRESHOLD[0], \
+                    globals()[tile_to_fix.UPPER_HEATH_THRESHOLD[1]]
+        if tile_to_fix.LOWER_HEATH_THRESHOLD:
+            if type(tile_to_fix.LOWER_HEATH_THRESHOLD[1]) == str:
+                print(f"fixing {tile_to_fix.LOWER_HEATH_THRESHOLD[1]}")
+                tile_to_fix.LOWER_HEATH_THRESHOLD = \
+                    tile_to_fix.LOWER_HEATH_THRESHOLD[0], \
+                    globals()[tile_to_fix.LOWER_HEATH_THRESHOLD[1]]

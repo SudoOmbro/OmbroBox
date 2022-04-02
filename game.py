@@ -4,7 +4,7 @@ from typing import List, Tuple
 import pygame
 from pygame.locals import *
 
-from world.world import World, Dir
+from world.world import World, Dir, HeatTile
 from world.tiles import TILES
 
 """
@@ -46,7 +46,7 @@ def render(world: World, selected_tile: int, mouse_position: Tuple[int, int], pa
     if tiles_info:
         total_particles_text = FONT.render(f"Total tiles: {len(world.tiles)}", False, (255, 255, 255))
         scaled_surface.blit(total_particles_text, (10, 50))
-        tile = world.matrix[mouse_position[1]][mouse_position[0]]
+        tile = world.space_matrix[mouse_position[1]][mouse_position[0]]
         if tile:
             mouse_pos = pygame.mouse.get_pos()
             tile_type_text = SMALL_FONT.render(
@@ -59,20 +59,21 @@ def render(world: World, selected_tile: int, mouse_position: Tuple[int, int], pa
                 False,
                 (0, 0, 0)
             )
-            tile_heat_text = SMALL_FONT.render(
-                f"Heat: {tile.heat}",
-                False,
-                (255, 255, 255)
-            )
-            tile_heat_text_shadow = SMALL_FONT.render(
-                f"Heat: {tile.heat}",
-                False,
-                (0, 0, 0)
-            )
             scaled_surface.blit(tile_type_text_shadow, (mouse_pos[0] + 12, mouse_pos[1] + 2))
             scaled_surface.blit(tile_type_text, (mouse_pos[0] + 10, mouse_pos[1]))
-            scaled_surface.blit(tile_heat_text_shadow, (mouse_pos[0] + 12, mouse_pos[1] + 22))
-            scaled_surface.blit(tile_heat_text, (mouse_pos[0] + 10, mouse_pos[1] + 20))
+            if "heat" in tile.__dict__:
+                tile_heat_text = SMALL_FONT.render(
+                    f"Heat: {tile.heat}",
+                    False,
+                    (255, 255, 255)
+                )
+                tile_heat_text_shadow = SMALL_FONT.render(
+                    f"Heat: {tile.heat}",
+                    False,
+                    (0, 0, 0)
+                )
+                scaled_surface.blit(tile_heat_text_shadow, (mouse_pos[0] + 12, mouse_pos[1] + 22))
+                scaled_surface.blit(tile_heat_text, (mouse_pos[0] + 10, mouse_pos[1] + 20))
     # render pause text if the simulation is paused
     if paused:
         scaled_surface.blit(paused_text, (WINDOW.get_width() - paused_text.get_width() - 10, 10))

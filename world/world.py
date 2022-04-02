@@ -1,4 +1,4 @@
-from typing import Tuple, List, Dict, Type, Iterable
+from typing import Tuple, List, Type, Iterable
 
 from world.semirandom import rand
 
@@ -45,62 +45,59 @@ class Tile:
             density: int,
             world: "World",
             x: int,
-            y: int,
-            base_heat: int = 25,
-            heat_transfer_coefficient: float = 1,
-            passive_heat_loss: int = 0
+            y: int
     ):
         # render stuff
         self.color = color
         # Physics stuff
         self.density = density
-        self.base_heat = base_heat
-        self.heat = base_heat
-        self.heat_transfer_coefficient = heat_transfer_coefficient
-        self.passive_heath_loss = passive_heat_loss
         # position
         self.x = x
         self.y = y
         self.world = world
+        # control flags
+        self.active: bool = True
 
     def remove(self):
-        self.world.tiles_to_delete.append(self)
+        if self.active:
+            self.world.tiles_to_delete.append(self)
+            self.active = False
+            return True
+        return False
 
     def add(self):
         self.world.tiles.append(self)
-        self.world.matrix[self.y][self.x] = self
+        self.world.space_matrix[self.y][self.x] = self
 
     def delete(self):
         self.world.tiles.remove(self)
-        self.world.matrix[self.y][self.x] = None
+        self.world.space_matrix[self.y][self.x] = None
 
-    def get_next_pos(self, vector: Tuple[int, int]) -> NextPosition:
-        valid: bool = True
-        next_x: int = self.x + vector[0]
-        if (next_x < 0) or (next_x >= self.world.width):
-            valid = False
-        next_y: int = self.y + vector[1]
-        if (next_y < 0) or (next_y >= self.world.height):
-            valid = False
-        return NextPosition(next_x, next_y, valid)
+    def get_next_pos(self, relative_vector: Tuple[int, int]) -> NextPosition:
+        # returns the world position given a vector relative to the tile
+        next_x: int = self.x + relative_vector[0]
+        if not 0 <= next_x < self.world.width:
+            return NextPosition(0, 0, False)
+        next_y: int = self.y + relative_vector[1]
+        if not 0 <= next_y < self.world.height:
+            return NextPosition(0, 0, False)
+        return NextPosition(next_x, next_y, True)
 
-    def get_tile(self, x: int, y: int) -> "Tile" or None:
-        return self.world.matrix[y][x]
-
-    def get_neighbour_tile(self, direction: Tuple[int, int]) -> "Tile" or None:
+    def get_neighbour_tile(self, direction: Tuple[int, int], matrix: List[List["Tile" or None]]) -> "Tile" or None:
         next_pos = self.get_next_pos(direction)
         if not next_pos.valid:
             return None
-        checked_tile = self.get_tile(next_pos.x, next_pos.y)
+        checked_tile = matrix[next_pos.y][next_pos.x]
         if not checked_tile:
             return None
         return checked_tile
 
-    def transform(self, new_type: type) -> "Tile":
-        self.remove()
-        new_tile = new_type(self.world, self.x, self.y)
-        self.world.tiles_to_add.append(new_tile)
-        return new_tile
+    def transform(self, new_type: type) -> "Tile" or None:
+        if self.remove():
+            new_tile = new_type(self.world, self.x, self.y)
+            self.world.tiles_to_add.append(new_tile)
+            return new_tile
+        return None
 
 
 class MovingTile(Tile):
@@ -114,16 +111,16 @@ class MovingTile(Tile):
         self.world.moving_tiles.remove(self)
 
     def move(self, new_x: int, new_y: int, replacement_tile: "Tile" or None = None):
-        self.world.matrix[self.y][self.x] = replacement_tile
+        self.world.space_matrix[self.y][self.x] = replacement_tile
         self.x = new_x
         self.y = new_y
-        self.world.matrix[self.y][self.x] = self
+        self.world.space_matrix[self.y][self.x] = self
 
     def try_move(self, direction: Tuple[int, int]) -> bool:
         next_pos = self.get_next_pos(direction)
         if not next_pos.valid:
             return False
-        checked_tile = self.get_tile(next_pos.x, next_pos.y)
+        checked_tile = self.world.space_matrix[next_pos.y][next_pos.x]
         if not checked_tile:
             self.move(next_pos.x, next_pos.y)
             return True
@@ -146,16 +143,34 @@ class MovingTile(Tile):
 
 class HeatTile(Tile):
 
-    UPPER_HEATH_THRESHOLD: Tuple[int, Type["Tile"]] or None = None
-    LOWER_HEATH_THRESHOLD: Tuple[int, Type["Tile"]] or None = None
+    UPPER_HEATH_THRESHOLD: Tuple[int, Type[Tile]] or None = None
+    LOWER_HEATH_THRESHOLD: Tuple[int, Type[Tile]] or None = None
+
+    def __init__(
+            self,
+            color: Tuple[int, int, int],
+            density: int,
+            world: "World",
+            x: int,
+            y: int,
+            base_heat: int = 25,
+            heat_transfer_coefficient: float = 1,
+            passive_heat_loss: int = 0
+    ):
+        super().__init__(color, density, world, x, y)
+        self.heat = base_heat
+        self.heat_transfer_coefficient = heat_transfer_coefficient
+        self.passive_heath_loss = passive_heat_loss
 
     def add(self):
         super().add()
         self.world.heat_tiles.append(self)
+        self.world.heat_matrix[self.y][self.x] = self
 
     def delete(self):
         super().delete()
         self.world.heat_tiles.remove(self)
+        self.world.heat_matrix[self.y][self.x] = None
 
     def check_thresholds(self):
         if self.UPPER_HEATH_THRESHOLD:
@@ -164,21 +179,19 @@ class HeatTile(Tile):
                     new_tile = self.transform(self.UPPER_HEATH_THRESHOLD[1])
                     new_tile.heat = self.heat
                     return True
-                else:
-                    self.remove()
-                    return True
+                self.remove()
+                return True
         if self.LOWER_HEATH_THRESHOLD:
             if self.heat <= self.LOWER_HEATH_THRESHOLD[0]:
                 if self.LOWER_HEATH_THRESHOLD[1]:
                     new_tile = self.transform(self.LOWER_HEATH_THRESHOLD[1])
                     new_tile.heat = self.heat
                     return True
-                else:
-                    self.remove()
-                    return True
+                self.remove()
+                return True
         return False
 
-    def exchange_heat(self, target_tile: "Tile"):
+    def exchange_heat(self, target_tile: "HeatTile"):
         htc: float = self.heat_transfer_coefficient + target_tile.heat_transfer_coefficient
         exchanged_heat = int((target_tile.heat - self.heat) * htc) >> 2
         self.heat += exchanged_heat
@@ -187,7 +200,7 @@ class HeatTile(Tile):
     def do_exchange_heat(self):
         self.heat -= self.passive_heath_loss
         for direction in Dir.ALL:
-            tile = self.get_neighbour_tile(direction)
+            tile = self.get_neighbour_tile(direction, self.world.heat_matrix)
             if not tile:
                 continue
             self.exchange_heat(tile)
@@ -197,29 +210,51 @@ class HeatTile(Tile):
         raise NotImplemented
 
 
+class CustomTile(Tile):
+
+    def add(self):
+        super().add()
+        self.world.custom_tiles.append(self)
+        self.world.custom_matrix[self.y][self.x] = self
+
+    def delete(self):
+        super().delete()
+        self.world.custom_tiles.remove(self)
+        self.world.custom_matrix[self.y][self.x] = None
+
+    def custom_update(self):
+        raise NotImplemented
+
+
 class World:
 
     def __init__(self, width: int, height: int):
         self.width = width
         self.height = height
+        # init tile lists
         self.tiles: List[Tile] = []
         self.moving_tiles: List[MovingTile] = []
         self.heat_tiles: List[HeatTile] = []
+        self.custom_tiles: List[CustomTile] = []
         self.tiles_to_delete: List[Tile] = []
         self.tiles_to_add: List[Tile] = []
-        # init world matrix
-        self.matrix: List[List[Tile or None]] = []
+        # init world matrices
+        self.space_matrix: List[List[Tile or None]] = []
+        self.heat_matrix: List[List[HeatTile or None]] = []
+        self.custom_matrix: List[List[CustomTile or None]] = []
         for _ in range(height):
-            self.matrix.append([None for _ in range(width)])
-        print(f"world size: x {len(self.matrix[0])}, y {len(self.matrix)}")
+            self.space_matrix.append([None for _ in range(width)])
+            self.heat_matrix.append([None for _ in range(width)])
+            self.custom_matrix.append([None for _ in range(width)])
+        print(f"world size: x {len(self.space_matrix[0])}, y {len(self.space_matrix)}")
 
     def add_tile(self, tile_type: type, x: int, y: int):
         new_tile: Tile = tile_type(self, x, y)
-        if not self.matrix[y][x]:
+        if not self.space_matrix[y][x]:
             new_tile.add()
 
     def delete_tile(self, x: int, y: int):
-        tile = self.matrix[y][x]
+        tile = self.space_matrix[y][x]
         if tile:
             tile.remove()
 
@@ -230,6 +265,9 @@ class World:
         # update tiles temperatures
         for tile in self.heat_tiles:
             tile.update_temperature()
+        # update tiles that have custom behaviours
+        for tile in self.custom_tiles:
+            tile.custom_update()
         # delete tiles that need to be deleted
         if self.tiles_to_delete:
             for tile in self.tiles_to_delete:
