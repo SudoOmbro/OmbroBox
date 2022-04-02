@@ -46,7 +46,7 @@ def render(world: World, selected_tile: int, mouse_position: Tuple[int, int], pa
     if tiles_info:
         total_particles_text = FONT.render(f"Total tiles: {len(world.tiles)}", False, (255, 255, 255))
         scaled_surface.blit(total_particles_text, (10, 50))
-        tile = world.space_matrix[mouse_position[1]][mouse_position[0]]
+        tile = world.spatial_matrix[mouse_position[1]][mouse_position[0]]
         if tile:
             mouse_pos = pygame.mouse.get_pos()
             tile_type_text = SMALL_FONT.render(

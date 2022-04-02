@@ -298,7 +298,7 @@ class GreyGooTile(CustomTile):
 
     def custom_update(self):
         for direction in Dir.ALL:
-            tile: Tile = self.get_neighbour_tile(direction, self.world.space_matrix)
+            tile: Tile = self.get_neighbour_tile(direction)
             if tile and (type(tile) != GreyGooTile):
                 tile.transform(GreyGooTile)
 
