@@ -6,6 +6,13 @@ A simple physics sandbox
   <img src="https://github.com/SudoOmbro/OmbroBox/blob/main/screenshots/img2.png" style=" width:200px ; height:200px"  >
 </div>
 
+## Features
+
+- Sand & Water Physics
+- Buoyancy
+- Heath transfer
+- Status changes (ice to water to vapor)
+
 ## controls
 - Click with the `Left mouse button` to add the selected Tile
 - Click with the `Right mouse button` to delete the tile you are hovering on
