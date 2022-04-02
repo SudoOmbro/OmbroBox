@@ -15,7 +15,6 @@ SMALL_FONT = pygame.font.Font('font.otf', 14)
 # Game Setup
 FPS = 60
 fpsClock = pygame.time.Clock()
-
 WINDOW = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
 pygame.display.set_caption('OmbroBox')
 pygame.display.set_icon(pygame.image.load("icon.png"))
@@ -33,7 +32,11 @@ def render(world: World, selected_tile: int, mouse_position: Tuple[int, int], pa
     surface.set_at(mouse_position, (255, 255, 255))
     scaled_surface = pygame.transform.scale(surface, WINDOW.get_size())
     # render selected tile
-    tile_text = FONT.render(f"selected tile: {TILES[selected_tile].NAME}", False, (255, 255, 255))
+    tile_text = FONT.render(
+        f"selected ({selected_tile + 1}/{len(TILES)}): {TILES[selected_tile].NAME}",
+        False,
+        (255, 255, 255)
+    )
     scaled_surface.blit(tile_text, (10, 10))
     # render additional information if tiles info is on
     if tiles_info:
