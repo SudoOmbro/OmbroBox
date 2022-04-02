@@ -216,7 +216,7 @@ class LiquidNitrogen(LiquidTile):
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
             (255, 255, 255),
-            1000,
+            0,
             world,
             x,
             y,

@@ -7,6 +7,10 @@ from pygame.locals import *
 from world.world import World, Dir
 from world.tiles import TILES
 
+"""
+All PyGame stuff is here (rendering & inputs)
+"""
+
 pygame.init()
 
 FONT = pygame.font.Font('font.otf', 18)
