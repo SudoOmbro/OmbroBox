@@ -1,6 +1,9 @@
 # OmbroBox
 A simple physics sandbox
 
+[Lava makes stuff hot!](https://github.com/SudoOmbro/OmbroBox/blob/main/screenshots/img1.png)
+[Wood burns with fire!](https://github.com/SudoOmbro/OmbroBox/blob/main/screenshots/img2.png)
+
 ## controls
 - Click with the `Left mouse button` to add the selected Tile
 - Click with the `Right mouse button` to delete the tile you are hovering on
