@@ -4,7 +4,7 @@ from typing import List, Tuple
 import pygame
 from pygame.locals import *
 
-from world.world import World, Dir, HeatTile
+from world.world import World, Dir
 from world.tiles import TILES
 
 """
