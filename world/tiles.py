@@ -15,6 +15,7 @@ def add_to_tile_list(tile: Type[Tile]) -> Type[Tile]:
 
 # Solid tiles ----------------------
 
+
 @add_to_tile_list
 class ConcreteTile(SolidTile):
 
@@ -281,7 +282,7 @@ class FireTile(ChaosTile):
         )
 
 
-# THE HACK OF THE CENTURY, FUCK YOU AND YOUR LACK OF FORWARD DECLARATIONS
+# This is needed as a workaround of Python's lack of forward declaration
 for tile_to_fix in TILES:
     if tile_to_fix.UPPER_HEATH_THRESHOLD:
         if type(tile_to_fix.UPPER_HEATH_THRESHOLD[1]) == str:

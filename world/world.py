@@ -1,5 +1,6 @@
-import random
 from typing import Tuple, List, Dict, Type, Iterable
+
+from world.semirandom import rand
 
 
 class Dir:
@@ -38,17 +39,6 @@ class Tile:
 
     NAME: str
 
-    INTERACTIONS: Dict[Type["Tile"], Type["Tile"]] = {}
-    """
-    This dictionary defines how the tile interacts with other tiles.
-    It can be interpreted as key -> value, or in words:
-    
-        if a tile of type "key" is encountered, then transform into type "value"
-    """
-
-    UPPER_HEATH_THRESHOLD: Tuple[int, Type["Tile"]] or None = None
-    LOWER_HEATH_THRESHOLD: Tuple[int, Type["Tile"]] or None = None
-
     def __init__(
             self,
             color: Tuple[int, int, int],
@@ -72,12 +62,17 @@ class Tile:
         self.x = x
         self.y = y
         self.world = world
-        # optimization
-        self.max_skip_update: int = 0
-        self.skip_update: int = 0
+
+    def remove(self):
+        self.world.tiles_to_delete.append(self)
+
+    def add(self):
+        self.world.tiles.append(self)
+        self.world.matrix[self.y][self.x] = self
 
     def delete(self):
-        self.world.tiles_to_delete.append(self)
+        self.world.tiles.remove(self)
+        self.world.matrix[self.y][self.x] = None
 
     def get_next_pos(self, vector: Tuple[int, int]) -> NextPosition:
         valid: bool = True
@@ -101,70 +96,28 @@ class Tile:
             return None
         return checked_tile
 
+    def transform(self, new_type: type) -> "Tile":
+        self.remove()
+        new_tile = new_type(self.world, self.x, self.y)
+        self.world.tiles_to_add.append(new_tile)
+        return new_tile
+
+
+class MovingTile(Tile):
+
+    def add(self):
+        super().add()
+        self.world.moving_tiles.append(self)
+
+    def delete(self):
+        super().delete()
+        self.world.moving_tiles.remove(self)
+
     def move(self, new_x: int, new_y: int, replacement_tile: "Tile" or None = None):
         self.world.matrix[self.y][self.x] = replacement_tile
         self.x = new_x
         self.y = new_y
         self.world.matrix[self.y][self.x] = self
-
-    def interact(self, target_tile: "Tile") -> bool:
-        interaction = self.INTERACTIONS.get(type(target_tile))
-        if interaction:
-            self.transform(interaction)
-            return True
-        return False
-
-    def transform(self, new_type: type) -> "Tile":
-        self.delete()
-        new_tile = new_type(self.world, self.x, self.y)
-        self.world.tiles_to_add.append(new_tile)
-        return new_tile
-
-    def check_thresholds(self):
-        if self.UPPER_HEATH_THRESHOLD:
-            if self.heat >= self.UPPER_HEATH_THRESHOLD[0]:
-                if self.UPPER_HEATH_THRESHOLD[1]:
-                    new_tile = self.transform(self.UPPER_HEATH_THRESHOLD[1])
-                    new_tile.heat = self.heat
-                    return True
-                else:
-                    self.delete()
-                    return True
-        if self.LOWER_HEATH_THRESHOLD:
-            if self.heat <= self.LOWER_HEATH_THRESHOLD[0]:
-                if self.LOWER_HEATH_THRESHOLD[1]:
-                    new_tile = self.transform(self.LOWER_HEATH_THRESHOLD[1])
-                    new_tile.heat = self.heat
-                    return True
-                else:
-                    self.delete()
-                    return True
-        return False
-
-    def exchange_heat(self, target_tile: "Tile"):
-        htc: float = self.heat_transfer_coefficient + target_tile.heat_transfer_coefficient
-        exchanged_heat = int((target_tile.heat - self.heat) * htc) >> 2
-        self.heat += exchanged_heat
-        target_tile.heat -= exchanged_heat
-
-    def do_interact(self) -> bool:
-        # add this to the update function of a tile to have it just interact
-        for direction in Dir.ALL:
-            tile = self.get_neighbour_tile(direction)
-            if not tile:
-                continue
-            if self.interact(tile):
-                return True
-        return False
-
-    def do_exchange_heat(self):
-        self.heat -= self.passive_heath_loss
-        for direction in Dir.ALL:
-            tile = self.get_neighbour_tile(direction)
-            if not tile:
-                continue
-            self.exchange_heat(tile)
-        self.check_thresholds()
 
     def try_move(self, direction: Tuple[int, int]) -> bool:
         next_pos = self.get_next_pos(direction)
@@ -190,6 +143,56 @@ class Tile:
     def update_position(self):
         raise NotImplemented
 
+
+class HeatTile(Tile):
+
+    UPPER_HEATH_THRESHOLD: Tuple[int, Type["Tile"]] or None = None
+    LOWER_HEATH_THRESHOLD: Tuple[int, Type["Tile"]] or None = None
+
+    def add(self):
+        super().add()
+        self.world.heat_tiles.append(self)
+
+    def delete(self):
+        super().delete()
+        self.world.heat_tiles.remove(self)
+
+    def check_thresholds(self):
+        if self.UPPER_HEATH_THRESHOLD:
+            if self.heat >= self.UPPER_HEATH_THRESHOLD[0]:
+                if self.UPPER_HEATH_THRESHOLD[1]:
+                    new_tile = self.transform(self.UPPER_HEATH_THRESHOLD[1])
+                    new_tile.heat = self.heat
+                    return True
+                else:
+                    self.remove()
+                    return True
+        if self.LOWER_HEATH_THRESHOLD:
+            if self.heat <= self.LOWER_HEATH_THRESHOLD[0]:
+                if self.LOWER_HEATH_THRESHOLD[1]:
+                    new_tile = self.transform(self.LOWER_HEATH_THRESHOLD[1])
+                    new_tile.heat = self.heat
+                    return True
+                else:
+                    self.remove()
+                    return True
+        return False
+
+    def exchange_heat(self, target_tile: "Tile"):
+        htc: float = self.heat_transfer_coefficient + target_tile.heat_transfer_coefficient
+        exchanged_heat = int((target_tile.heat - self.heat) * htc) >> 2
+        self.heat += exchanged_heat
+        target_tile.heat -= exchanged_heat
+
+    def do_exchange_heat(self):
+        self.heat -= self.passive_heath_loss
+        for direction in Dir.ALL:
+            tile = self.get_neighbour_tile(direction)
+            if not tile:
+                continue
+            self.exchange_heat(tile)
+        self.check_thresholds()
+
     def update_temperature(self):
         raise NotImplemented
 
@@ -200,6 +203,8 @@ class World:
         self.width = width
         self.height = height
         self.tiles: List[Tile] = []
+        self.moving_tiles: List[MovingTile] = []
+        self.heat_tiles: List[HeatTile] = []
         self.tiles_to_delete: List[Tile] = []
         self.tiles_to_add: List[Tile] = []
         # init world matrix
@@ -211,54 +216,41 @@ class World:
     def add_tile(self, tile_type: type, x: int, y: int):
         new_tile: Tile = tile_type(self, x, y)
         if not self.matrix[y][x]:
-            self.tiles.append(new_tile)
-            self.matrix[y][x] = new_tile
-
-    def _add_tile(self, tile: Tile):
-        self.tiles.append(tile)
-        self.matrix[tile.y][tile.x] = tile
+            new_tile.add()
 
     def delete_tile(self, x: int, y: int):
         tile = self.matrix[y][x]
         if tile:
-            self.tiles.remove(tile)
-            self.matrix[y][x] = None
-
-    def _delete_tile(self, tile: Tile):
-        self.tiles.remove(tile)
-        self.matrix[tile.y][tile.x] = None
+            tile.remove()
 
     def update(self):
         # update tiles positions
-        for tile in self.tiles:
+        for tile in self.moving_tiles:
             tile.update_position()
         # update tiles temperatures
-        for tile in self.tiles:
+        for tile in self.heat_tiles:
             tile.update_temperature()
         # delete tiles that need to be deleted
         if self.tiles_to_delete:
             for tile in self.tiles_to_delete:
-                self._delete_tile(tile)
+                tile.delete()
             self.tiles_to_delete.clear()
         # add tiles that need to be added
         if self.tiles_to_add:
             for tile in self.tiles_to_add:
-                self._add_tile(tile)
+                tile.add()
             self.tiles_to_add.clear()
 
 
 # Tile types --------------------------------------
 
-class SolidTile(Tile):
-
-    def update_position(self):
-        pass
+class SolidTile(HeatTile):
 
     def update_temperature(self):
         self.do_exchange_heat()
 
 
-class SemiSolidTile(Tile):
+class SemiSolidTile(HeatTile, MovingTile):
 
     DIRECTIONS = (Dir.DOWN, Dir.DOWN_LEFT, Dir.DOWN_RIGHT)
 
@@ -269,7 +261,7 @@ class SemiSolidTile(Tile):
         self.do_exchange_heat()
 
 
-class LiquidTile(Tile):
+class LiquidTile(HeatTile, MovingTile):
 
     DIRECTIONS = (
         (Dir.DOWN, Dir.DOWN_LEFT, Dir.LEFT, Dir.DOWN_RIGHT, Dir.RIGHT),
@@ -277,13 +269,13 @@ class LiquidTile(Tile):
     )
 
     def update_position(self):
-        self.check_directions(random.choice(self.DIRECTIONS))
+        self.check_directions(self.DIRECTIONS[rand(2)])
 
     def update_temperature(self):
         self.do_exchange_heat()
 
 
-class GasTile(Tile):
+class GasTile(HeatTile, MovingTile):
 
     DIRECTIONS = (
         (Dir.UP, Dir.UP_LEFT, Dir.LEFT, Dir.UP_RIGHT, Dir.RIGHT),
@@ -291,13 +283,13 @@ class GasTile(Tile):
     )
 
     def update_position(self):
-        self.check_directions(random.choice(self.DIRECTIONS))
+        self.check_directions(self.DIRECTIONS[rand(2)])
 
     def update_temperature(self):
         self.do_exchange_heat()
 
 
-class ChaosTile(Tile):
+class ChaosTile(HeatTile, MovingTile):
 
     DIRECTIONS = (
         (Dir.UP, Dir.UP_LEFT, Dir.UP_RIGHT),
@@ -307,7 +299,7 @@ class ChaosTile(Tile):
     )
 
     def update_position(self):
-        self.check_directions(random.choice(self.DIRECTIONS))
+        self.check_directions(self.DIRECTIONS[rand(4)])
 
     def update_temperature(self):
         self.do_exchange_heat()
