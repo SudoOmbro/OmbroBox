@@ -8,10 +8,12 @@ A simple physics sandbox
 
 ## Features
 
-- Sand & Water Physics
+- ECS-like architecture achieved through multiple inheritace
+- Sand, Water & Gas Physics
 - Buoyancy
 - Heath transfer
-- Status changes (ice to water to vapor)
+- Status changes (ice -> water -> vapor)
+- Scriptable custom tile behaviours
 
 ## controls
 - Click with the `Left mouse button` to add the selected Tile
