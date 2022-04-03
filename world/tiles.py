@@ -1,6 +1,6 @@
 from typing import List, Type
 
-from world.world import Tile, GasTile, World, LiquidTile, SemiSolidTile, SolidTile, ChaosTile, CustomTile, Dir
+from world.world import Tile, GasTile, World, LiquidTile, SemiSolidTile, SolidTile, ChaosTile, CustomTile, Dir, HeatTile
 from world.semirandom import randint
 
 TILES: List[Type[Tile]] = []
@@ -32,6 +32,22 @@ class ConcreteTile(SolidTile):
 
 
 @add_to_tile_list
+class StrangeMatterTile(SolidTile):
+
+    NAME = "Strange Matter"
+
+    def __init__(self, world: World, x: int, y: int):
+        super().__init__(
+            (10 + randint(245), 10 + randint(245), 10 + randint(245)),
+            10000000,
+            world,
+            x,
+            y,
+            heat_transfer_coefficient=0
+        )
+
+
+@add_to_tile_list
 class WoodTile(SolidTile):
 
     NAME = "Wood"
@@ -40,7 +56,7 @@ class WoodTile(SolidTile):
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
             (117 + randint(40), 63 + randint(40), 4 + randint(40)),
-            100000,
+            10000,
             world,
             x,
             y,
@@ -124,7 +140,7 @@ class RockTile(SemiSolidTile):
 class IceTile(SemiSolidTile):
 
     NAME = "Ice"
-    UPPER_HEATH_THRESHOLD = 0, "WaterTile"
+    UPPER_HEATH_THRESHOLD = 10, "WaterTile"
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
@@ -150,6 +166,22 @@ class AshTile(SemiSolidTile):
             x,
             y,
             base_heat=100,
+        )
+
+
+@add_to_tile_list
+class GunpowderTile(SemiSolidTile):
+
+    NAME = "Gun powder"
+    UPPER_HEATH_THRESHOLD = 500, "ExplosionTile"
+
+    def __init__(self, world: World, x: int, y: int):
+        super().__init__(
+            (40-randint(20), 40-randint(20), 40-randint(20)),
+            1,
+            world,
+            x,
+            y
         )
 
 
@@ -282,6 +314,8 @@ class FireTile(ChaosTile):
         )
 
 
+# custom tiles --------------------------------
+
 @add_to_tile_list
 class GreyGooTile(CustomTile):
 
@@ -301,6 +335,69 @@ class GreyGooTile(CustomTile):
             tile: Tile = self.get_neighbour_tile(direction)
             if tile and (type(tile) != GreyGooTile):
                 tile.transform(GreyGooTile)
+
+
+@add_to_tile_list
+class AcidTile(LiquidTile, CustomTile):
+
+    NAME = "Acid"
+
+    def __init__(self, world: World, x: int, y: int):
+        super().__init__(
+            (0, 235 + randint(20), 0),
+            0,
+            world,
+            x,
+            y
+        )
+
+    def custom_update(self):
+        if randint(20) != 0:
+            return
+        for direction in Dir.ALL:
+            tile: Tile = self.get_neighbour_tile(direction)
+            if tile and (type(tile) != AcidTile):
+                tile.remove()
+                self.remove()
+                return
+
+
+@add_to_tile_list
+class ExplosionTile(HeatTile, CustomTile):
+
+    NAME = "Explosion"
+
+    def __init__(self, world: World, x: int, y: int):
+        super().__init__(
+            (255, 255, 0),
+            10000,
+            world,
+            x,
+            y,
+            base_heat=2000
+        )
+        self.range: int = 10
+        self.tile_duration: int = 2
+
+    def custom_update(self):
+        if self.tile_duration == 0:
+            if self.range != 0:
+                new_range = self.range - 1
+                for direction in (Dir.UP, Dir.LEFT, Dir.RIGHT, Dir.DOWN):
+                    next_pos = self.get_next_pos(direction)
+                    if not next_pos.valid:
+                        continue
+                    checked_tile: Tile = self.world.spatial_matrix[next_pos.y][next_pos.x]
+                    if checked_tile and (type(checked_tile) != ExplosionTile):
+                        checked_tile.remove()
+                    new_tile = self.world.add_tile(ExplosionTile, next_pos.x, next_pos.y)
+                    new_tile.range = new_range
+            self.remove()
+        else:
+            self.tile_duration -= 1
+
+    def update_temperature(self):
+        self.do_exchange_heat()
 
 
 # This is needed as a workaround of Python's lack of forward declaration

@@ -328,15 +328,19 @@ class World:
             CustomTileSystem(self)
         )
 
-    def add_tile(self, tile_type: type, x: int, y: int):
+    def add_tile(self, tile_type: type, x: int, y: int) -> Tile:
+        """ adds a tile at the given position and returns it """
         new_tile: Tile = tile_type(self, x, y)
         if not self.spatial_matrix[y][x]:
             new_tile.add()
+        return new_tile
 
-    def delete_tile(self, x: int, y: int):
+    def delete_tile(self, x: int, y: int) -> Tile:
+        """ Removes a tile at the given position and returns it """
         tile = self.spatial_matrix[y][x]
         if tile:
             tile.remove()
+        return tile
 
     def update(self):
         # update systems
