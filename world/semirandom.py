@@ -9,7 +9,7 @@ _LAST_PLACE = len(_NUMBERS) - 1
 _CURSOR: int = -1
 
 
-def rand(max_num: int) -> int:
+def randint(max_num: int) -> int:
     """
     Implements the DOOM way of getting random numbers, faster than the base random by about 3.5 times.
 
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     random_time = time() - start_time
     start_time = time()
     for _ in range(1000000):
-        rand(10)
+        randint(10)
     semirandom_time = time() - start_time
     print(f"Random time: {random_time}")
     print(f"Semi-Random time: {semirandom_time}")

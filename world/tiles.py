@@ -1,7 +1,7 @@
-from random import randint
 from typing import List, Type
 
 from world.world import Tile, GasTile, World, LiquidTile, SemiSolidTile, SolidTile, ChaosTile, CustomTile, Dir
+from world.semirandom import randint
 
 TILES: List[Type[Tile]] = []
 _TILES_TO_FIX: List[Type[Tile]] = []
@@ -23,7 +23,7 @@ class ConcreteTile(SolidTile):
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
-            (160 + randint(-20, 20), 160 + randint(-20, 20), 160 + randint(-20, 20)),
+            (140 + randint(40), 140 + randint(40), 140 + randint(40)),
             100000,
             world,
             x,
@@ -39,7 +39,7 @@ class WoodTile(SolidTile):
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
-            (137 + randint(-20, 20), 83 + randint(-20, 20), 24 + randint(-20, 20)),
+            (117 + randint(40), 63 + randint(40), 4 + randint(40)),
             100000,
             world,
             x,
@@ -57,7 +57,7 @@ class BurningWood(SolidTile):
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
-            (229 + randint(-20, 20), 138 + randint(-20, 20), 4),
+            (209 + randint(40), 118 + randint(40), 4),
             100000,
             world,
             x,
@@ -75,7 +75,7 @@ class GlassTile(SolidTile):
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
-            (172 + randint(-20, 20), 223 + randint(-20, 20), 226 + randint(-20, 20)),
+            (152 + randint(40), 203 + randint(40), 206 + randint(40)),
             100000,
             world,
             x,
@@ -95,7 +95,7 @@ class SandTile(SemiSolidTile):
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
-            (255-randint(0, 50), 255-randint(0, 50), 0),
+            (205-randint(50), 205-randint(50), 0),
             10,
             world,
             x,
@@ -112,7 +112,7 @@ class RockTile(SemiSolidTile):
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
-            (50-randint(0, 10), 50-randint(0, 10), 50-randint(0, 10)),
+            (40-randint(10), 40-randint(10), 50-randint(10)),
             800,
             world,
             x,
@@ -128,7 +128,7 @@ class IceTile(SemiSolidTile):
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
-            (200-randint(0, 20), 200-randint(0, 20), 255-randint(0, 20)),
+            (200-randint(20), 200-randint(20), 255-randint(20)),
             1,
             world,
             x,
@@ -144,7 +144,7 @@ class AshTile(SemiSolidTile):
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
-            (140-randint(0, 20), 140-randint(0, 20), 140-randint(0, 20)),
+            (140-randint(20), 140-randint(20), 140-randint(20)),
             1,
             world,
             x,
@@ -164,7 +164,7 @@ class WaterTile(LiquidTile):
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
-            (0, 0, 255-randint(0, 100)),
+            (0, 0, 155+randint(100)),
             2,
             world,
             x,
@@ -180,7 +180,7 @@ class OilTile(LiquidTile):
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
-            (193-randint(0, 20), 193-randint(0, 20), 69-randint(0, 10)),
+            (193-randint(20), 193-randint(20), 69-randint(10)),
             1,
             world,
             x,
@@ -197,7 +197,7 @@ class LavaTile(LiquidTile):
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
-            (255 - randint(0, 20), 0, 0),
+            (255 - randint(20), 0, 0),
             1000,
             world,
             x,
@@ -234,12 +234,12 @@ class VaporTile(GasTile):
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
-            (255-randint(0, 20), 255-randint(0, 20), 255-randint(0, 20)),
+            (255-randint(20), 255-randint(20), 255-randint(20)),
             0,
             world,
             x,
             y,
-            base_heat=randint(220, 340),
+            base_heat=220 + randint(120),
             passive_heat_loss=1
         )
 
@@ -252,12 +252,12 @@ class SmokeTile(GasTile):
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
-            (50-randint(0, 20), 50-randint(0, 20), 50-randint(0, 20)),
+            (50-randint(20), 50-randint(20), 50-randint(20)),
             0,
             world,
             x,
             y,
-            base_heat=randint(220, 340),
+            base_heat=220 + randint(120),
         )
 
 
@@ -271,7 +271,7 @@ class FireTile(ChaosTile):
 
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
-            (242-randint(0, 20), 141-randint(0, 20), 0),
+            (242-randint(20), 141-randint(20), 0),
             0,
             world,
             x,

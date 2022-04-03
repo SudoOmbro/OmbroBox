@@ -1,10 +1,7 @@
 from functools import cache
-from typing import Tuple, List, Type, Iterable
+from typing import Tuple, List, Type, Iterable, Callable
 
-from world.semirandom import rand
-
-
-SIMULATION_FREQUENCY: int = 60
+from world.semirandom import randint
 
 
 class Dir:
@@ -111,8 +108,12 @@ class Tile:
 
 class MovingTile(Tile):
 
+    _MAX_UPDATE_SKIP = 3
+
     def __init__(self, color: Tuple[int, int, int], density: int, world: "World", x: int, y: int):
         super().__init__(color, density, world, x, y)
+        self._skip_update: int = 0
+        self._cooldown: int = 0
 
     def add(self):
         super().add()
@@ -122,7 +123,7 @@ class MovingTile(Tile):
         super().delete()
         self.world.moving_tiles.remove(self)
 
-    def move(self, new_x: int, new_y: int, replacement_tile: "Tile" or None = None):
+    def move(self, new_x: int, new_y: int, replacement_tile: "Tile" or None):
         self.world.spatial_matrix[self.y][self.x] = replacement_tile
         self.x = new_x
         self.y = new_y
@@ -134,7 +135,7 @@ class MovingTile(Tile):
             return False
         checked_tile = self.world.spatial_matrix[next_pos.y][next_pos.x]
         if not checked_tile:
-            self.move(next_pos.x, next_pos.y)
+            self.move(next_pos.x, next_pos.y, None)
             return True
         elif checked_tile.density < self.density:
             checked_tile.x = self.x
@@ -144,10 +145,17 @@ class MovingTile(Tile):
         return False
 
     def check_directions(self, directions: Iterable[Tuple[int, int]]):
-        # add this to the update function of a tile to make it move
-        for direction in directions:
-            if self.try_move(direction):
-                return
+        if self._cooldown == 0:
+            for direction in directions:
+                if self.try_move(direction):
+                    self._skip_update = 0
+                    return
+        else:
+            self._cooldown -= 1
+            return
+        if self._skip_update != self._MAX_UPDATE_SKIP:
+            self._skip_update += 1
+        self._cooldown = self._skip_update
 
     def update_position(self):
         raise NotImplemented
@@ -157,6 +165,8 @@ class HeatTile(Tile):
 
     UPPER_HEATH_THRESHOLD: Tuple[int, Type[Tile]] or None = None
     LOWER_HEATH_THRESHOLD: Tuple[int, Type[Tile]] or None = None
+
+    check_thresholds: Callable
 
     def __init__(
             self,
@@ -173,6 +183,15 @@ class HeatTile(Tile):
         self.heat = base_heat
         self.heat_transfer_coefficient = heat_transfer_coefficient
         self.passive_heath_loss = passive_heat_loss
+        # optimize threshold check
+        if self.UPPER_HEATH_THRESHOLD and (not self.LOWER_HEATH_THRESHOLD):
+            self.check_thresholds = self.check_upper_threshold
+        elif (not self.UPPER_HEATH_THRESHOLD) and self.LOWER_HEATH_THRESHOLD:
+            self.check_thresholds = self.check_lower_threshold
+        elif self.UPPER_HEATH_THRESHOLD and self.LOWER_HEATH_THRESHOLD:
+            self.check_thresholds = self.check_both_thresholds
+        else:
+            self.check_thresholds = self.check_no_threshold
 
     def add(self):
         super().add()
@@ -182,26 +201,33 @@ class HeatTile(Tile):
         super().delete()
         self.world.heat_tiles.remove(self)
 
-    def check_thresholds(self):
-        if self.UPPER_HEATH_THRESHOLD:
-            if self.heat >= self.UPPER_HEATH_THRESHOLD[0]:
-                if self.UPPER_HEATH_THRESHOLD[1]:
-                    new_tile = self.transform(self.UPPER_HEATH_THRESHOLD[1])
-                    if new_tile:
-                        new_tile.heat = self.heat
-                    return True
-                self.remove()
-                return True
-        if self.LOWER_HEATH_THRESHOLD:
-            if self.heat <= self.LOWER_HEATH_THRESHOLD[0]:
-                if self.LOWER_HEATH_THRESHOLD[1]:
-                    new_tile = self.transform(self.LOWER_HEATH_THRESHOLD[1])
-                    if new_tile:
-                        new_tile.heat = self.heat
-                    return True
-                self.remove()
-                return True
+    def check_no_threshold(self) -> bool:
         return False
+
+    def check_upper_threshold(self) -> bool:
+        if self.heat >= self.UPPER_HEATH_THRESHOLD[0]:
+            if self.UPPER_HEATH_THRESHOLD[1]:
+                new_tile = self.transform(self.UPPER_HEATH_THRESHOLD[1])
+                if new_tile:
+                    new_tile.heat = self.heat
+                return True
+            self.remove()
+            return True
+        return False
+
+    def check_lower_threshold(self) -> bool:
+        if self.heat <= self.LOWER_HEATH_THRESHOLD[0]:
+            if self.LOWER_HEATH_THRESHOLD[1]:
+                new_tile = self.transform(self.LOWER_HEATH_THRESHOLD[1])
+                if new_tile:
+                    new_tile.heat = self.heat
+                return True
+            self.remove()
+            return True
+        return False
+
+    def check_both_thresholds(self) -> bool:
+        return self.check_upper_threshold() or self.check_lower_threshold()
 
     def exchange_heat(self, target_tile: "HeatTile"):
         htc: float = self.heat_transfer_coefficient + target_tile.heat_transfer_coefficient
@@ -243,22 +269,10 @@ class GenericSystem:
 
     NAME: str
 
-    def __init__(self, world: "World", update_frequency: int = SIMULATION_FREQUENCY, phase_displacement: int = 0):
+    def __init__(self, world: "World"):
         self.world = world
-        if update_frequency > SIMULATION_FREQUENCY:
-            raise ValueError("A system cannot update at a higher frequency than the simulation frequency")
-        self._frame_skip = int(SIMULATION_FREQUENCY / update_frequency) - 1
-        self.frames_to_skip = phase_displacement
-        print(f"System '{self.NAME}' initialized (frame skip: {self._frame_skip})")
 
     def update(self):
-        if self.frames_to_skip == 0:
-            self.logic()
-            self.frames_to_skip += self._frame_skip
-        else:
-            self.frames_to_skip -= 1
-
-    def logic(self):
         raise NotImplemented
 
 
@@ -266,7 +280,7 @@ class MovementSystem(GenericSystem):
 
     NAME = "Movement System"
 
-    def logic(self):
+    def update(self):
         for tile in self.world.moving_tiles:
             tile.update_position()
 
@@ -275,7 +289,7 @@ class HeathSystem(GenericSystem):
 
     NAME = "Heath System"
 
-    def logic(self):
+    def update(self):
         for tile in self.world.heat_tiles:
             tile.update_temperature()
 
@@ -284,7 +298,7 @@ class CustomTileSystem(GenericSystem):
 
     NAME = "Custom Tile System"
 
-    def logic(self):
+    def update(self):
         for tile in self.world.custom_tiles:
             tile.custom_update()
 
@@ -302,15 +316,16 @@ class World:
         self.tiles_to_delete: List[Tile] = []
         self.tiles_to_add: List[Tile] = []
         # init world matrices
-        self.spatial_matrix: List[List[Tile or None]] = []
+        init_matrix: List[List[Tile or None]] = []
         for _ in range(height):
-            self.spatial_matrix.append([None for _ in range(width)])
+            init_matrix.append([None for _ in range(width)])
+        self.spatial_matrix: Tuple[List[Tile], ...] = tuple(init_matrix)
         print(f"world size: x {len(self.spatial_matrix[0])}, y {len(self.spatial_matrix)}")
         # init systems
         self.systems: Iterable[GenericSystem] = (
-            MovementSystem(self, 30),
-            HeathSystem(self, 30, 1),
-            CustomTileSystem(self, 60)
+            MovementSystem(self),
+            HeathSystem(self),
+            CustomTileSystem(self)
         )
 
     def add_tile(self, tile_type: type, x: int, y: int):
@@ -368,7 +383,7 @@ class LiquidTile(HeatTile, MovingTile):
     )
 
     def update_position(self):
-        self.check_directions(self.DIRECTIONS[rand(2)])
+        self.check_directions(self.DIRECTIONS[randint(2)])
 
     def update_temperature(self):
         self.do_exchange_heat()
@@ -382,7 +397,7 @@ class GasTile(HeatTile, MovingTile):
     )
 
     def update_position(self):
-        self.check_directions(self.DIRECTIONS[rand(2)])
+        self.check_directions(self.DIRECTIONS[randint(2)])
 
     def update_temperature(self):
         self.do_exchange_heat()
@@ -398,7 +413,7 @@ class ChaosTile(HeatTile, MovingTile):
     )
 
     def update_position(self):
-        self.check_directions(self.DIRECTIONS[rand(4)])
+        self.check_directions(self.DIRECTIONS[randint(4)])
 
     def update_temperature(self):
         self.do_exchange_heat()
