@@ -4,6 +4,8 @@ A simple physics sandbox.
 <div>
   <img src="https://github.com/SudoOmbro/OmbroBox/blob/main/screenshots/img1.png" style=" width:200px ; height:200px"  >
   <img src="https://github.com/SudoOmbro/OmbroBox/blob/main/screenshots/img2.png" style=" width:200px ; height:200px"  >
+  <img src="https://github.com/SudoOmbro/OmbroBox/blob/main/screenshots/img3.png" style=" width:200px ; height:200px"  >
+  <img src="https://github.com/SudoOmbro/OmbroBox/blob/main/screenshots/img4.png" style=" width:200px ; height:200px"  >
 </div>
 
 ## Features
