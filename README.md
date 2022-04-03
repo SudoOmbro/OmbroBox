@@ -1,5 +1,5 @@
 # OmbroBox
-A simple physics sandbox
+A simple physics sandbox.
 
 <div>
   <img src="https://github.com/SudoOmbro/OmbroBox/blob/main/screenshots/img1.png" style=" width:200px ; height:200px"  >
@@ -24,4 +24,5 @@ A simple physics sandbox
 - Press `ESC` to reset the world
 - Press `Left CTRL` while adding or deleting tiles to enable big brush mode
 
-## Enjoy!
+## Performance
+For being pure python it's as good as it gets, i would suggest using PyPy to run it until i can figure out Cython.
