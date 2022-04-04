@@ -1,6 +1,6 @@
 from typing import List, Type
 
-from world.world import Tile, GasTile, World, LiquidTile, SemiSolidTile, SolidTile, ChaosTile, CustomTile, Dir, HeatTile
+from world.world import Tile, GasTile, World, LiquidTile, SemiSolidTile, SolidTile, CustomTile, Dir, HeatTile
 from world.semirandom import randint
 
 TILES: List[Type[Tile]] = []
@@ -178,7 +178,7 @@ class GunpowderTile(SemiSolidTile):
     def __init__(self, world: World, x: int, y: int):
         super().__init__(
             (40-randint(20), 40-randint(20), 40-randint(20)),
-            1,
+            4,
             world,
             x,
             y
@@ -289,32 +289,58 @@ class SmokeTile(GasTile):
             world,
             x,
             y,
-            base_heat=220 + randint(120),
-        )
-
-
-# Chaos tiles -------------------
-
-@add_to_tile_list
-class FireTile(ChaosTile):
-
-    NAME = "Fire"
-    LOWER_HEATH_THRESHOLD = 100, SmokeTile
-
-    def __init__(self, world: World, x: int, y: int):
-        super().__init__(
-            (242-randint(20), 141-randint(20), 0),
-            0,
-            world,
-            x,
-            y,
-            base_heat=1000,
-            passive_heat_loss=1,
-            heat_transfer_coefficient=1
+            base_heat=300 + randint(120),
+            passive_heat_loss=1
         )
 
 
 # custom tiles --------------------------------
+
+@add_to_tile_list
+class FireTile(CustomTile):
+
+    NAME = "Fire"
+
+    DIRECTIONS = (
+        (Dir.UP, Dir.UP_LEFT, Dir.UP_RIGHT),
+        (Dir.UP_LEFT, Dir.UP, Dir.UP_RIGHT),
+        (Dir.UP_RIGHT, Dir.UP_LEFT, Dir.UP),
+        (Dir.LEFT, Dir.RIGHT, Dir.UP_LEFT, Dir.UP_RIGHT),
+        (Dir.RIGHT, Dir.LEFT, Dir.UP_RIGHT, Dir.UP_LEFT),
+        (Dir.UP_LEFT, Dir.UP_RIGHT, Dir.LEFT, Dir.RIGHT),
+        (Dir.UP_RIGHT, Dir.UP_LEFT, Dir.RIGHT, Dir.LEFT)
+    )
+
+    def __init__(self, world: World, x: int, y: int):
+        super().__init__(
+            (242-randint(20), 141-randint(20), 0),
+            -2,
+            world,
+            x,
+            y
+        )
+        self.duration: int = 180 + randint(180)
+
+    def custom_update(self):
+        for direction in self.DIRECTIONS[randint(7)]:
+            next_pos = self.get_next_pos(direction)
+            if not next_pos.valid:
+                continue
+            checked_tile: Tile = self.world.spatial_matrix[next_pos.y][next_pos.x]
+            if not checked_tile:
+                self.world.spatial_matrix[self.y][self.x] = None
+                self.x = next_pos.x
+                self.y = next_pos.y
+                self.world.spatial_matrix[self.y][self.x] = self
+                break
+            elif checked_tile in self.world.heat_tiles:
+                checked_tile.heat += 100
+                self.duration -= 50
+                break
+        self.duration -= 1
+        if self.duration <= 0:
+            self.remove()
+
 
 @add_to_tile_list
 class GreyGooTile(CustomTile):
@@ -392,6 +418,9 @@ class ExplosionTile(HeatTile, CustomTile):
                         checked_tile.remove()
                     new_tile = self.world.add_tile(ExplosionTile, next_pos.x, next_pos.y)
                     new_tile.range = new_range
+            else:
+                new_tile = SmokeTile(self.world, self.x, self.y)
+                self.world.tiles_to_add.append(new_tile)
             self.remove()
         else:
             self.tile_duration -= 1

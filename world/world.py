@@ -405,19 +405,3 @@ class GasTile(HeatTile, MovingTile):
 
     def update_temperature(self):
         self.do_exchange_heat()
-
-
-class ChaosTile(HeatTile, MovingTile):
-
-    DIRECTIONS = (
-        (Dir.UP, Dir.UP_LEFT, Dir.UP_RIGHT),
-        (Dir.LEFT, Dir.UP_LEFT, Dir.DOWN_LEFT),
-        (Dir.DOWN, Dir.DOWN_LEFT, Dir.DOWN_RIGHT),
-        (Dir.RIGHT, Dir.UP_RIGHT, Dir.DOWN_RIGHT)
-    )
-
-    def update_position(self):
-        self.check_directions(self.DIRECTIONS[randint(4)])
-
-    def update_temperature(self):
-        self.do_exchange_heat()
