@@ -27,4 +27,4 @@ A simple physics sandbox.
 - Press `Left CTRL` while adding or deleting tiles to enable big brush mode
 
 ## Performance
-For being pure python it's as good as it gets, i would suggest using PyPy to run it until i can figure out Cython.
+For being pure python it's as good as it gets (without using multiprocessing or Cython), i would suggest using PyPy.
