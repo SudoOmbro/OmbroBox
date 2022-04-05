@@ -63,6 +63,7 @@ class Tile:
         self.world = world
         # control flags
         self.active: bool = True
+        self.last_update: int = 0
 
     def remove(self):
         if self.active:
@@ -140,6 +141,7 @@ class MovingTile(Tile):
         elif checked_tile.density < self.density:
             checked_tile.x = self.x
             checked_tile.y = self.y
+            checked_tile.last_update = self.world.update_count
             self.move(next_pos.x, next_pos.y, replacement_tile=checked_tile)
             return True
         return False
@@ -149,6 +151,7 @@ class MovingTile(Tile):
             for direction in directions:
                 if self.try_move(direction):
                     self._skip_update = 0
+                    self.last_update = self.world.update_count
                     return
         else:
             self._cooldown -= 1
@@ -282,7 +285,8 @@ class MovementSystem(GenericSystem):
 
     def update(self):
         for tile in self.world.moving_tiles:
-            tile.update_position()
+            if tile.last_update != self.world.update_count:
+                tile.update_position()
 
 
 class HeathSystem(GenericSystem):
@@ -327,6 +331,7 @@ class World:
             HeathSystem(self),
             CustomTileSystem(self)
         )
+        self.update_count: int = 0
 
     def add_tile(self, tile_type: type, x: int, y: int) -> Tile:
         """ adds a tile at the given position and returns it """
@@ -358,6 +363,7 @@ class World:
                 tile.add()
                 del tile
             self.tiles_to_add.clear()
+        self.update_count += 1
 
 
 # Tile types --------------------------------------
